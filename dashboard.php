@@ -373,7 +373,10 @@ try {
                 Quick Actions
             </h3>
             <div class="quick-buttons">
-                <a href="app/node-management.php" class="btn btn-primary">
+                <a href="app/realtime-dashboard.php" class="btn btn-primary">
+                    <i class="fas fa-broadcast-tower"></i> Real-Time Data
+                </a>
+                <a href="app/node-management.php" class="btn btn-secondary">
                     <i class="fas fa-list"></i> View Nodes
                 </a>
                 <a href="app/profile-management.php" class="btn btn-secondary">

@@ -45,26 +45,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'alert_level_user' => $alert_level_user
             ];
             
-            // Handle password change
+            // Handle password change separately
             if (!empty($new_password)) {
                 if (empty($current_password)) {
                     $error_message = 'Current password is required to change password.';
-                } elseif ($user['pass_user'] !== $current_password) {
+                } elseif (!$userModel->verifyPassword($user_id, $current_password)) {
                     $error_message = 'Current password is incorrect.';
                 } elseif ($new_password !== $confirm_password) {
                     $error_message = 'New passwords do not match.';
                 } elseif (strlen($new_password) < 6) {
                     $error_message = 'New password must be at least 6 characters long.';
                 } else {
-                    $updateData['pass_user'] = $new_password;
+                    // Update password separately
+                    $passwordResult = $userModel->updateUserPass($user_id, $new_password);
+                    if ($passwordResult > 0) {
+                        $success_message .= 'Password updated successfully! ';
+                    }
                 }
             }
             
             if (empty($error_message)) {
-                $result = $userModel->updateUser($updateData);
+                // Update profile (without password)
+                $result = $userModel->updateUserProfile($updateData);
                 
-                if ($result > 0) {
-                    $success_message = 'Profile updated successfully!';
+                // Update alert level separately
+                $alertResult = $userModel->updateUserAlertLevel([
+                    'id_user' => $user_id,
+                    'alert_level_user' => $alert_level_user
+                ]);
+                
+                if ($result >= 0 || $alertResult >= 0) { // >= 0 because even 0 rows affected can be valid (no changes)
+                    $success_message = 'Profile updated successfully!' . $success_message;
                     
                     // Update session data
                     $_SESSION['user_name'] = $name_user;
@@ -73,7 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Refresh user data
                     $user = $userModel->getUserById($user_id);
                 } else {
-                    $error_message = 'No changes were made or update failed.';
+                    if (empty($success_message)) {
+                        $error_message = 'No changes were made or update failed.';
+                    }
                 }
             }
         } catch (Exception $e) {

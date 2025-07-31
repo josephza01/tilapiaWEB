@@ -55,16 +55,88 @@ class UserModel {
             WHERE id_user = :id_user";  
         return $this->executeQuery($query, [  
             ":id_user" => $data['id_user'],  
-            ":name_user" => $data['name_user'], 
-            ":email_user" => $data['email_user'],  
-            ":tel_user" => $data['tel_user'],  
-            ":name_farm" => $data['name_farm'],  
-            ":address_farm" => $data['address_farm'],  
-            ":zipcode_farm" => $data['zipcode_farm'],  
-            ":county_farm" => $data['county_farm'],  
-            ":latlon_farm" => $data['latlon_farm']  
+            ":name_user" => $data['name_user'] ?? '', 
+            ":email_user" => $data['email_user'] ?? '',  
+            ":tel_user" => $data['tel_user'] ?? '',  
+            ":name_farm" => $data['name_farm'] ?? '',  
+            ":address_farm" => $data['address_farm'] ?? '',  
+            ":zipcode_farm" => $data['zipcode_farm'] ?? '',  
+            ":county_farm" => $data['county_farm'] ?? '',  
+            ":latlon_farm" => $data['latlon_farm'] ?? ''  
         ])->rowCount();  
     }  
+
+    /**
+     * Update only basic user profile (name, email, phone)
+     */
+    public function updateUserProfile($data) {
+        $query = "UPDATE user_tb SET   
+            name_user = :name_user,  
+            email_user = :email_user,  
+            tel_user = :tel_user   
+            WHERE id_user = :id_user";  
+        return $this->executeQuery($query, [  
+            ":id_user" => $data['id_user'],  
+            ":name_user" => $data['name_user'] ?? '', 
+            ":email_user" => $data['email_user'] ?? '',  
+            ":tel_user" => $data['tel_user'] ?? ''
+        ])->rowCount();  
+    }
+
+    /**
+     * Update user alert level
+     */
+    public function updateUserAlertLevel($data) {
+        $query = "UPDATE user_tb SET alert_level_user = :alert_level_user WHERE id_user = :id_user";
+        return $this->executeQuery($query, [
+            ":id_user" => $data['id_user'],
+            ":alert_level_user" => $data['alert_level_user'] ?? 1
+        ])->rowCount();
+    }
+
+    /**
+     * Verify current password before updating
+     */
+    public function verifyPassword($id_user, $current_password) {
+        $query = "SELECT pass_user FROM user_tb WHERE id_user = :id_user";
+        $stmt = $this->executeQuery($query, [":id_user" => $id_user]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            return false;
+        }
+        
+        $stored_password = $user['pass_user'];
+        
+        // Try different verification methods
+        // 1. Direct comparison (plain text)
+        if ($stored_password === $current_password) {
+            return true;
+        }
+        
+        // 2. Trimmed comparison (in case of whitespace issues)
+        if (trim($stored_password) === trim($current_password)) {
+            return true;
+        }
+        
+        // 3. Check if stored password is hashed and verify
+        if (strlen($stored_password) === 60 && substr($stored_password, 0, 4) === '$2y$') {
+            // Looks like bcrypt hash
+            return password_verify($current_password, $stored_password);
+        }
+        
+        // 4. Check for MD5 hash (32 characters)
+        if (strlen($stored_password) === 32 && ctype_xdigit($stored_password)) {
+            return md5($current_password) === $stored_password;
+        }
+        
+        // 5. Check for SHA1 hash (40 characters)
+        if (strlen($stored_password) === 40 && ctype_xdigit($stored_password)) {
+            return sha1($current_password) === $stored_password;
+        }
+        
+        return false;
+    }
 
     /**  
      * Update user alert settings.  
@@ -156,6 +228,32 @@ class UserModel {
             ":alert_level_user" => $data['alert_level_user'] ?? 1,
             ":lastlogin_user" => date('Y-m-d H:i:s')
         ])->rowCount();
+    }
+
+    /**
+     * Debug method to check password format
+     */
+    public function debugPassword($id_user) {
+        $query = "SELECT pass_user FROM user_tb WHERE id_user = :id_user";
+        $stmt = $this->executeQuery($query, [":id_user" => $id_user]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            return ['error' => 'User not found'];
+        }
+        
+        $password = $user['pass_user'];
+        
+        return [
+            'password' => $password,
+            'length' => strlen($password),
+            'trimmed' => trim($password),
+            'is_numeric' => is_numeric($password),
+            'is_bcrypt' => (strlen($password) === 60 && substr($password, 0, 4) === '$2y$'),
+            'is_md5' => (strlen($password) === 32 && ctype_xdigit($password)),
+            'is_sha1' => (strlen($password) === 40 && ctype_xdigit($password)),
+            'has_whitespace' => ($password !== trim($password))
+        ];
     }
 
     /**
