@@ -172,5 +172,87 @@ class NodeModel {
         $query = "DELETE FROM node_farm WHERE id_node = :id_node";
         return $this->executeQuery($query, [":id_node" => $id_node])->rowCount();
     }
+
+    /**
+     * Get latest sensor data from all active nodes
+     */
+    public function getLatestSensorData($id_user = null) {
+        $whereClause = $id_user ? "WHERE id_user = :id_user" : "";
+        $query = "SELECT AVG(temp_node) as temperature,
+                         AVG(ph_node) as ph,
+                         AVG(do_node) as dissolved_oxygen,
+                         AVG(hum_node) as turbidity,
+                         MAX(laston_node) as last_update,
+                         COUNT(*) as node_count
+                  FROM node_farm 
+                  {$whereClause}
+                  AND laston_node >= DATE_SUB(NOW(), INTERVAL 2 HOUR)";
+        
+        $params = $id_user ? [":id_user" => $id_user] : [];
+        $stmt = $this->executeQuery($query, $params);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get system health score based on sensor readings
+     */
+    public function getSystemHealth($id_user = null) {
+        $data = $this->getLatestSensorData($id_user);
+        
+        if (!$data || $data['node_count'] == 0) {
+            return ['score' => 0, 'status' => 'No Data', 'message' => 'No active nodes found'];
+        }
+
+        $score = 100;
+        $issues = [];
+
+        // Temperature check (26-30°C is optimal)
+        if ($data['temperature'] < 24 || $data['temperature'] > 32) {
+            $score -= 25;
+            $issues[] = 'Temperature out of range';
+        } elseif ($data['temperature'] < 26 || $data['temperature'] > 30) {
+            $score -= 10;
+            $issues[] = 'Temperature suboptimal';
+        }
+
+        // pH check (6.5-8.5 is optimal)
+        if ($data['ph'] < 6.0 || $data['ph'] > 9.0) {
+            $score -= 30;
+            $issues[] = 'pH critically out of range';
+        } elseif ($data['ph'] < 6.5 || $data['ph'] > 8.5) {
+            $score -= 15;
+            $issues[] = 'pH suboptimal';
+        }
+
+        // Dissolved Oxygen check (5-15 mg/L is optimal)
+        if ($data['dissolved_oxygen'] < 3 || $data['dissolved_oxygen'] > 20) {
+            $score -= 35;
+            $issues[] = 'Dissolved oxygen critically low/high';
+        } elseif ($data['dissolved_oxygen'] < 5 || $data['dissolved_oxygen'] > 15) {
+            $score -= 15;
+            $issues[] = 'Dissolved oxygen suboptimal';
+        }
+
+        $score = max(0, $score);
+
+        if ($score >= 90) {
+            $status = 'Excellent';
+        } elseif ($score >= 75) {
+            $status = 'Good';
+        } elseif ($score >= 50) {
+            $status = 'Fair';
+        } elseif ($score >= 25) {
+            $status = 'Poor';
+        } else {
+            $status = 'Critical';
+        }
+
+        return [
+            'score' => $score,
+            'status' => $status,
+            'issues' => $issues,
+            'data' => $data
+        ];
+    }
 }  
 ?>

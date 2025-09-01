@@ -30,6 +30,10 @@ try {
     // Get user's nodes for quick overview
     $userNodes = $nodeModel->getNodesWithLatestData($_SESSION['user_id']);
     
+    // Get latest sensor data for quick preview
+    $latestData = $nodeModel->getLatestSensorData($_SESSION['user_id']);
+    $systemHealth = $nodeModel->getSystemHealth($_SESSION['user_id']);
+    
 } catch (Exception $e) {
     error_log("Dashboard error: " . $e->getMessage());
     $totalUsers = 0;
@@ -37,6 +41,8 @@ try {
     $activeNodes = 0;
     $activeFarms = 0;
     $userNodes = [];
+    $latestData = null;
+    $systemHealth = ['score' => 0, 'status' => 'Unknown'];
 }
 ?>
 
@@ -242,6 +248,11 @@ try {
             color: #334155;
         }
 
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+        }
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
@@ -360,9 +371,12 @@ try {
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" style="color: #10b981;">Online</div>
+                <div class="stat-number" style="color: <?php 
+                    echo $systemHealth['score'] >= 75 ? '#10b981' : 
+                         ($systemHealth['score'] >= 50 ? '#f59e0b' : '#ef4444'); 
+                ?>;"><?php echo $systemHealth['score']; ?>%</div>
                 <div class="stat-label">
-                    <i class="fas fa-heartbeat"></i> System Status
+                    <i class="fas fa-heartbeat"></i> System Health
                 </div>
             </div>
         </div>
@@ -373,17 +387,14 @@ try {
                 Quick Actions
             </h3>
             <div class="quick-buttons">
-                <a href="app/realtime-dashboard.php" class="btn btn-primary">
-                    <i class="fas fa-broadcast-tower"></i> Real-Time Data
-                </a>
-                <a href="app/node-management.php" class="btn btn-secondary">
+                <a href="app/node-management.php" class="btn btn-primary">
                     <i class="fas fa-list"></i> View Nodes
                 </a>
                 <a href="app/profile-management.php" class="btn btn-secondary">
                     <i class="fas fa-user-edit"></i> Edit Profile
                 </a>
-                <a href="#" class="btn btn-secondary" onclick="viewAnalytics()">
-                    <i class="fas fa-chart-line"></i> View Reports
+                <a href="app/data-logs.php" class="btn btn-info">
+                    <i class="fas fa-chart-line"></i> Data Logs
                 </a>
                 <a href="app/alert-management.php" class="btn btn-secondary">
                     <i class="fas fa-bell"></i> Manage Alerts
@@ -405,9 +416,6 @@ try {
                         <a href="app/node-management.php" class="btn btn-primary">
                             <i class="fas fa-eye"></i> View Nodes
                         </a>
-                        <a href="app/add-node.php" class="btn btn-secondary">
-                            <i class="fas fa-plus"></i> Add Node
-                        </a>
                     </div>
                 </div>
             </div>
@@ -424,9 +432,6 @@ try {
                     <div class="action-buttons">
                         <a href="app/profile-management.php" class="btn btn-primary">
                             <i class="fas fa-eye"></i> View Profile
-                        </a>
-                        <a href="app/user-management.php" class="btn btn-secondary">
-                            <i class="fas fa-edit"></i> Manage Users
                         </a>
                     </div>
                 </div>
@@ -445,29 +450,9 @@ try {
                         <a href="app/pump-control.php" class="btn btn-primary">
                             <i class="fas fa-tint"></i> Pump Control
                         </a>
-                        <a href="app/alert-management.php" class="btn btn-secondary">
-                            <i class="fas fa-bell"></i> Alert Settings
-                        </a>
                     </div>
                 </div>
             </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <h3 class="card-title">Analytics & Reports</h3>
-                </div>
-                <div class="card-content">
-                    <p>View detailed analytics of your farm operations, water quality trends, feeding schedules, and fish growth patterns.</p>
-                    <div class="action-buttons">
-                        <a href="#" class="btn btn-primary" onclick="viewAnalytics()">
-                            <i class="fas fa-chart-bar"></i> View Reports
-                        </a>
-                        <a href="#" class="btn btn-secondary" onclick="exportData()">
-                            <i class="fas fa-download"></i> Export Data
-                        </a>
                     </div>
                 </div>
             </div>
@@ -482,7 +467,7 @@ try {
 
         // View analytics
         function viewAnalytics() {
-            alert('Analytics feature - you can implement this to show charts and graphs.');
+            window.open('app/realtime-dashboard.php', '_blank');
         }
 
         // Export data

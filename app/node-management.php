@@ -400,12 +400,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <button class="btn btn-primary" onclick="viewNodeLogs(<?php echo $node['id_node']; ?>)">
                                 <i class="fas fa-chart-line"></i> View Logs
                             </button>
-                            <button class="btn btn-secondary" onclick="editNode(<?php echo $node['id_node']; ?>)">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-danger" onclick="deleteNode(<?php echo $node['id_node']; ?>)">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+
                         </div>
                     </div>
                 <?php endforeach; ?>
